@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ReceiptData, SplitSummary } from '../types';
 import { generateSettlementText, formatCurrency } from '../utils/calculator';
-import { X, Copy, Check, Share2, Download } from 'lucide-react';
+import { X, Copy, Check, Share2, Download, FileSpreadsheet, Code } from 'lucide-react';
 
 interface ShareModalProps {
   receipt: ReceiptData;
@@ -23,12 +23,77 @@ export const ShareModal: React.FC<ShareModalProps> = ({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownload = () => {
+  const handleDownloadTxt = () => {
     const blob = new Blob([settlementText], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
     link.download = `Bill-Split-${(receipt.merchantName || 'Receipt').replace(/\s+/g, '-')}.txt`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadCsv = () => {
+    const headers = ['Participant', 'Assigned Items Count', 'Food Subtotal', 'Tax Share', 'Tip Share', 'Discount Share', 'Total Owed', 'Status'];
+    const rows = summary.personBreakdowns.map((b) => [
+      `"${b.person.name.replace(/"/g, '""')}"`,
+      b.items.length,
+      b.itemSubtotal.toFixed(2),
+      b.taxShare.toFixed(2),
+      b.tipShare.toFixed(2),
+      b.discountShare.toFixed(2),
+      b.totalOwed.toFixed(2),
+      'Pending'
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Bill-Split-${(receipt.merchantName || 'Receipt').replace(/\s+/g, '-')}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadJson = () => {
+    const exportData = {
+      receipt: {
+        merchant: receipt.merchantName,
+        date: receipt.date,
+        currency: receipt.currency,
+        subtotal: receipt.subtotal,
+        tax: receipt.tax,
+        tip: receipt.tip,
+        discount: receipt.discount,
+        total: receipt.total,
+        items: receipt.items
+      },
+      summary: {
+        totalCalculatedBill: summary.totalCalculatedBill,
+        taxRatePercent: summary.taxRatePercent,
+        effectiveTipPercent: summary.effectiveTipPercent,
+        personBreakdowns: summary.personBreakdowns.map(b => ({
+          personName: b.person.name,
+          foodSubtotal: b.itemSubtotal,
+          taxShare: b.taxShare,
+          tipShare: b.tipShare,
+          discountShare: b.discountShare,
+          totalOwed: b.totalOwed,
+          items: b.items.map(i => ({
+            name: i.item.name,
+            sharePercent: i.sharePercent,
+            allocatedPrice: i.allocatedPrice
+          }))
+        }))
+      }
+    };
+
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `Bill-Split-${(receipt.merchantName || 'Receipt').replace(/\s+/g, '-')}.json`;
     link.click();
     URL.revokeObjectURL(url);
   };
@@ -48,7 +113,7 @@ export const ShareModal: React.FC<ShareModalProps> = ({
                 SHARE BREAKDOWN
               </h3>
               <p className="text-[10px] font-bold uppercase tracking-widest text-neutral-500">
-                Export text summary for messages or chat
+                Export text summary, CSV, or JSON
               </p>
             </div>
           </div>
@@ -89,15 +154,36 @@ export const ShareModal: React.FC<ShareModalProps> = ({
         </div>
 
         {/* Actions Bar */}
-        <div className="mt-4 pt-3 border-t-2 border-black flex items-center justify-between">
-          <button
-            type="button"
-            onClick={handleDownload}
-            className="inline-flex items-center space-x-1.5 px-3 py-2 text-xs font-black uppercase tracking-wider text-black bg-white hover:bg-neutral-100 border-2 border-black transition-colors"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>EXPORT .TXT</span>
-          </button>
+        <div className="mt-4 pt-3 border-t-2 border-black flex flex-wrap gap-2 items-center justify-between">
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={handleDownloadTxt}
+              className="inline-flex items-center space-x-1 px-2.5 py-2 text-[10px] font-black uppercase tracking-wider text-black bg-white hover:bg-neutral-100 border-2 border-black transition-colors"
+              title="Download formatted text file"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>.TXT</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadCsv}
+              className="inline-flex items-center space-x-1 px-2.5 py-2 text-[10px] font-black uppercase tracking-wider text-black bg-white hover:bg-neutral-100 border-2 border-black transition-colors"
+              title="Export as CSV for Excel or Google Sheets"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>.CSV</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadJson}
+              className="inline-flex items-center space-x-1 px-2.5 py-2 text-[10px] font-black uppercase tracking-wider text-black bg-white hover:bg-neutral-100 border-2 border-black transition-colors"
+              title="Export as raw JSON data"
+            >
+              <Code className="w-3.5 h-3.5" />
+              <span>.JSON</span>
+            </button>
+          </div>
 
           <button
             type="button"
@@ -107,12 +193,12 @@ export const ShareModal: React.FC<ShareModalProps> = ({
             {copied ? (
               <>
                 <Check className="w-4 h-4 text-green-400" />
-                <span>COPIED TO CLIPBOARD!</span>
+                <span>COPIED!</span>
               </>
             ) : (
               <>
                 <Copy className="w-4 h-4" />
-                <span>COPY SUMMARY TEXT</span>
+                <span>COPY SUMMARY</span>
               </>
             )}
           </button>
