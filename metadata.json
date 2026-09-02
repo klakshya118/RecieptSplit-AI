@@ -1,6 +1,10 @@
 {
   "name": "ReceiptSplit AI - Bill Splitting Assistant",
   "description": "Split restaurant bills effortlessly with AI receipt parsing, natural language chat commands, and proportional tax and tip calculation.",
-  "requestFramePermissions": ["camera"],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
