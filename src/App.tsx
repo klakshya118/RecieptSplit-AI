@@ -143,7 +143,11 @@ export default function App() {
       setMessages([welcomeMsg]);
     } catch (err: any) {
       console.error(err);
-      alert(`Error parsing receipt: ${err.message || 'Please check the image and try again.'}`);
+      throw new Error(
+        err.message?.includes('high demand') || err.message?.includes('503')
+          ? 'Gemini AI is currently under high traffic spike. Please retry in a moment, or click a sample bill below to test instantly.'
+          : err.message || 'Error processing receipt image. Please try again.'
+      );
     } finally {
       setIsReceiptLoading(false);
     }
@@ -187,7 +191,11 @@ export default function App() {
       setMessages([welcomeMsg]);
     } catch (err: any) {
       console.error(err);
-      alert(`Error: ${err.message}`);
+      throw new Error(
+        err.message?.includes('high demand') || err.message?.includes('503')
+          ? 'Gemini AI is currently under high traffic spike. Please retry in a moment, or click a sample bill below.'
+          : err.message || 'Error processing receipt text.'
+      );
     } finally {
       setIsReceiptLoading(false);
     }

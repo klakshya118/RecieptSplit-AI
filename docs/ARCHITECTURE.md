@@ -87,3 +87,30 @@ When a user submits a natural language prompt (e.g., *"Alex had the nachos and 1
 3. **State Mutation**:
    - The client merges updated assignments into React state.
    - Recalculates all proportional shares in real time.
+
+---
+
+## 5. Free-Only LLM Reliability & Zero-Token Engine
+
+To guarantee uninterrupted operation without incurring API costs:
+
+1. **Free-Tier Model Cascading**:
+   - **Primary**: `gemini-2.5-flash` (high token efficiency, fast multimodal vision OCR)
+   - **Secondary Fallback**: `gemini-2.5-flash-lite` (low resource footprint)
+   - **Tertiary Fallback**: `gemini-3.7-flash` (reasoning fallback)
+   - **Strict Zero-Cost Boundary**: Never executes paid-only endpoints or models.
+
+2. **Deterministic In-Memory Caching (LRU + TTL)**:
+   - Evaluates SHA-256 digests on receipt image/text and chat commands.
+   - Exact repeat operations return instantly with **0 tokens consumed** and **0ms API latency**.
+
+3. **Key Pooling, Rotation & Quarantine Reservoir**:
+   - Accepts multiple free-tier keys via `GEMINI_API_KEY`, `GEMINI_API_KEYS`, or `GEMINI_API_KEY_1..N`.
+   - **Round-Robin Fair Distribution**: Spreads requests across healthy free keys to avoid rate limit spikes.
+   - **Temporary Quarantine**: Quarantines any key encountering 429/503/quota exhaustion for exponential backoff intervals (30s to 300s).
+   - **Reservoir Switching**: Automatically switches to the next healthy key in the pool before escalating to model cascade.
+   - **Zero Secrets Logged**: All keys are strictly masked (`AIza...1234`) in logs and diagnostics.
+
+4. **Resilient JSON Recovery**:
+   - Cleans Markdown fences (````json ... ````) and uses bracket extraction algorithms if raw output has formatting noise.
+

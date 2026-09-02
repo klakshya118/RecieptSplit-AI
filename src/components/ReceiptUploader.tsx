@@ -18,6 +18,54 @@ interface ReceiptUploaderProps {
   isLoading: boolean;
 }
 
+// Compress and resize image before upload to prevent network timeouts
+const compressImageFile = async (
+  file: File,
+  maxDimension = 1600,
+  quality = 0.85
+): Promise<{ base64: string; mimeType: string }> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          resolve({ base64: e.target?.result as string, mimeType: file.type || 'image/jpeg' });
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        const mimeType = 'image/jpeg';
+        const base64 = canvas.toDataURL(mimeType, quality);
+        resolve({ base64, mimeType });
+      };
+      img.onerror = () => {
+        resolve({ base64: e.target?.result as string, mimeType: file.type || 'image/jpeg' });
+      };
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+};
+
 export const ReceiptUploader: React.FC<ReceiptUploaderProps> = ({
   onImageUploaded,
   onTextParsed,
@@ -34,6 +82,7 @@ export const ReceiptUploader: React.FC<ReceiptUploaderProps> = ({
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const loadingSteps = [
+    'Optimizing receipt image & contacting AI...',
     'Scanning receipt image with Gemini Vision...',
     'Detecting line items, prices & quantities...',
     'Extracting subtotal, tax and tip details...',
@@ -72,22 +121,21 @@ export const ReceiptUploader: React.FC<ReceiptUploaderProps> = ({
     return () => window.removeEventListener('paste', handlePaste);
   }, []);
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     if (!file.type.startsWith('image/')) {
       setErrorMsg('Please select a valid image file (JPG, PNG, WEBP, etc.)');
       return;
     }
     setErrorMsg(null);
 
-    const reader = new FileReader();
-    reader.onload = async () => {
-      const result = reader.result as string;
-      await onImageUploaded(result, file.type);
-    };
-    reader.onerror = () => {
-      setErrorMsg('Failed to read image file. Please try again.');
-    };
-    reader.readAsDataURL(file);
+    try {
+      // Compress and optimize image to ensure ultra-fast and reliable upload
+      const { base64, mimeType } = await compressImageFile(file);
+      await onImageUploaded(base64, mimeType);
+    } catch (err: any) {
+      console.error('Image compression or upload error:', err);
+      setErrorMsg(err.message || 'Failed to process image. Please try again or test with a sample receipt below.');
+    }
   };
 
   const handleDrag = (e: React.DragEvent) => {

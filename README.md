@@ -24,36 +24,35 @@
 ## 🏗️ Architecture & Data Flow
 
 ```mermaid
-flowchart TD
-    subgraph Client ["Client (React + Vite + Tailwind)"]
-        UI[User Interface & Camera/Upload]
-        State[Local Assignment State Engine]
+graph TD
+    subgraph Client [Client Application]
+        UI[User Interface & Camera Upload]
         Voice[Web Speech API Dictation]
-        Export[WhatsApp / Venmo / CSV Exporter]
+        State[Local Assignment State Engine]
+        Export[Multi-Format Exporter]
     end
 
-    subgraph Backend ["Server (Node.js + Express)"]
-        API_Parse["/api/parse-receipt (Multimodal Vision OCR)"]
-        API_Chat["/api/chat-split (Natural Language Interpreter)"]
-        Health["/api/health (Heartbeat & Status)"]
+    subgraph Backend [Node.js Express Server]
+        API_Parse[OCR Endpoint: /api/parse-receipt]
+        API_Chat[Chat Endpoint: /api/chat-split]
     end
 
-    subgraph AI ["Google Gemini Cloud"]
-        GeminiFlash["Gemini 3.7 Flash Model\n(Structured JSON Schema Output)"]
+    subgraph AI [Google Gemini Cloud]
+        Gemini[Gemini 2.5 / 3.7 Flash Model]
     end
 
-    UI -->|Photo Capture / Image Upload| API_Parse
-    Voice -->|Transcribed Text| UI
-    UI -->|Natural Language Command| API_Chat
+    UI -->|1. Upload Receipt Photo| API_Parse
+    Voice -->|Voice Input| UI
+    UI -->|2. Natural Language Command| API_Chat
 
-    API_Parse -->|Base64 Image + Schema| GeminiFlash
-    API_Chat -->|Context + Receipt Items + Command| GeminiFlash
+    API_Parse -->|Base64 Image Data| Gemini
+    API_Chat -->|Prompt and Receipt Items| Gemini
 
-    GeminiFlash -->|Structured Receipt JSON| API_Parse
-    GeminiFlash -->|Item Allocations & New People| API_Chat
+    Gemini -->|Structured JSON Items| API_Parse
+    Gemini -->|Parsed Assignments| API_Chat
 
-    API_Parse -->|Parsed Items, Tax, Tip, Currency| State
-    API_Chat -->|Target Assignments| State
+    API_Parse -->|Extracted Line Items| State
+    API_Chat -->|Allocations and Participants| State
 
     State --> UI
     State --> Export
